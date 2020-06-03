@@ -4,6 +4,8 @@ Created on Tue Jun  2 14:40:35 2020
 
 @author: kpurc
 
+This was optimized for Python in Anaconda Spyder API
+
 these were websites I found helpful in making this
 https://pythonprogramming.net/tables-xml-scraping-parsing-beautiful-soup-tutorial/
 https://stackoverflow.com/questions/22410416/beautifulsoup-extracting-data-from-multiple-tables
