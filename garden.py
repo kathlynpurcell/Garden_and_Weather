@@ -4,8 +4,6 @@ Created on Tue Jun  2 14:40:35 2020
 
 @author: kpurc
 
-This was optimized for Python in Anaconda Spyder API
-
 these were websites I found helpful in making this
 https://pythonprogramming.net/tables-xml-scraping-parsing-beautiful-soup-tutorial/
 https://stackoverflow.com/questions/22410416/beautifulsoup-extracting-data-from-multiple-tables
@@ -18,6 +16,8 @@ https://www.geeksforgeeks.org/pyqt5-how-to-change-color-of-the-label/
 
 
 The weather websites can be reached through the links in the Beautiful Soup code
+https://w1.weather.gov/data/obhistory/KPTW.html temperature
+https://www.nws.noaa.gov/wtf/MapClick.php?lat=40.2672473&lon=-75.60916959999997&site=all&smap=1&searchresult=Pottstown%2C%20PA%2019464%2C%20USA&lg=ep rain forcast
 """
 
 
@@ -51,55 +51,65 @@ for tr in rows[3:-3]: #this is finding when the row divides into another table e
     
 rain = []
 for tr in rows[3:-3]:
-    td = tr.find_all('td')[15:-3]# the 16th element is the temp we want
-    row_rain = [i.text for i in td] 
-    if row_rain == []:
+    td = tr.find_all('td')[15:-2]# the 16th element is the temp we want
+    row_rain = [i.text for i in td]
+    if row_rain == ['']:
         row_rain = '0'
-    else:
-        row_rain=row_rain
-
-    rain.append(int("".join(row_rain)))
-    #print(row_rain) #now we have all the rain inches we want
+    rain.append(float("".join(row_rain)))
     
+#print(row_rain) #now we have all the rain inches we want
 avg_temp = sum(temp)/len(temp)
-avg_rain = sum(rain)/len(rain)
-
+avg_rain = float(sum(rain))/float(len(rain))
 #print(avg_temp,avg_rain)
 
 #it is too hot if it is over 70 degrees average and should be watered more
-#the garden needs abt 1 inch of water a week so we are looking for .5 avg per 3 days to be safe
+#the garden needs abt 1 inch of water a week to be safe
 #my plants need extra water anyway so this is a good check
 
 
 
-pred_link = "https://forecast.weather.gov/MapClick.php?lat=40.2578&lon=-75.7264&unit=0&lg=english&FcstType=dwml" #the link to pottstown, PA ariport weather
+pred_link = "https://forecast.weather.gov/MapClick.php?lat=40.2465&lon=-75.648&unit=0&lg=english&FcstType=dwml" #the link to pottstown, PA ariport weather
 html = urlopen(pred_link) #finding the chance of rain in the next 3 days
 soup = BeautifulSoup(html, 'html.parser')
 table_p = soup.find_all('probability-of-precipitation') #use find all cause theres more than one table in the HTML
 #rows = table.find_all('value') #find when the HTML goes to new line 'tr' to find the lines
                                 #table[3] since its the fourth 'table' in the HTML
 value = soup.find_all('value')
+
 pred = [i.text for i in value]
-pred = [int(i) for i in pred[14:23]] #we only want the percents for rain
-avg_pred = sum(pred)/len(pred)
+pred = pred[14:28]
+pred_final = []
+#print(pred[14:21])
+for i in range (len(pred)):
+    #pred = [int(i) for i in pred]
+    if pred[i] == '':
+        pred[i] = '0'
+    else:
+        pred[i]=pred[i]
+    
+    pred_final.append(int(pred[i]))
+
+#pred = [int(i) for i in pred[14:21]] #we only want the percents for rain
+avg_pred = sum(pred_final[0:7])/len(pred_final[0:7])
 
 
 #if the average is higher than 25% we can assume it will rain or be cloudy/humid enough to not water
-   
+#avg_rain is given by hour so the ints are the values we want per 3 days so they must be scaled to reflect the average per hours
+    #168 hours per week
 
 
-def message(avg_pred,avg_rain,avg_temp):
+def message(avg_pred,rain,avg_temp):
     if avg_pred > 45:
         mess = ("Don't water the garden, it's going to rain a lot soon.") 
     elif avg_pred > 25:
         mess = ("You don't have to water. It should rain soon.")
-    elif avg_rain < 0.2:
+    elif sum(rain) < 0.5:
         mess = ("You need to water the garden.")
-    elif avg_rain < 0.5:
+    elif sum(rain) < 1.0:
         mess = ("You should think about watering the garden.")
-    elif avg_temp > 80 and avg_rain < 0.6:
+    elif avg_temp > 80 and sum(rain) < 0.6:
         mess = ('You really should water the garden.')
-    elif avg_temp > 70 and avg_rain < 0.7:
+    elif avg_temp > 70 and sum(rain) < 0.7:
         mess = ('You really should water the garden.')
     else:
         mess = ('The garden should be fine. Its warm and wet. Don\'t worry!')
@@ -108,11 +118,11 @@ def message(avg_pred,avg_rain,avg_temp):
 '''
 #comment this out since we are using the GUI    
 print("\n Here is my prediction for your garden in the Pottstown area: \n ")
-print(message(avg_pred,avg_rain,avg_temp))
+print(message(avg_pred,rain,avg_temp))
 print("\n\n")
-print('The average temp of the past 3 days was %1.2f F\N{DEGREE SIGN} and the average rainfall has been %i inches. \n' % (avg_temp, avg_rain))
-print('The predicted rainfall as a percent, incramented in 12 hr intervals over the next few days is: ')  
-print(str(pred).strip('[]')+'\n\n Please plan accoringly. \n Thanks for using the program!')
+print('The average temp of the past 3 days was %1.2f F\N{DEGREE SIGN} and the rainfall has been %2.3f inches. \n' % (avg_temp, sum(rain)))
+print('The predicted rainfall, incramented in 12 hr intervals over the next 7 days is: ')  
+print(str(pred_final).strip('['']').replace(',','%')+'\n\n Please plan accoringly. \n Thanks for using the program!')
 '''
    
 
@@ -146,20 +156,20 @@ class GardenWindow(QMainWindow):
         title.setAlignment(QtCore.Qt.AlignCenter)
         gridLayout.addWidget(title, 0, 0)
         
-        title2 = QLabel(message(avg_pred,avg_rain,avg_temp), self)
+        title2 = QLabel(message(avg_pred,rain,avg_temp), self)
         title2.setStyleSheet("color: white; background-color: darkgreen; border: 1px solid black; text: white;")
         title2.setAlignment(QtCore.Qt.AlignCenter)
         gridLayout.addWidget(title2, 100, 0)
         
-        title3 = QLabel('The average temp of the past 3 days was %1.2f F\N{DEGREE SIGN} and the average rainfall has been %i inches.' % (avg_temp, avg_rain), self) 
+        title3 = QLabel('The average temp of the past 3 days was %1.2f F\N{DEGREE SIGN} and the rainfall has been %2.3f inches.' % (avg_temp, sum(rain)), self) 
         title3.setAlignment(QtCore.Qt.AlignCenter)
         gridLayout.addWidget(title3, 200, 0)
         
-        title4 = QLabel('The predicted rainfall as a percent, incramented in 12 hr intervals over the next few days is: ', self) 
+        title4 = QLabel('The predicted rainfall, incramented in 12 hr intervals over the next 7 days is: ', self) 
         title4.setAlignment(QtCore.Qt.AlignCenter)
         gridLayout.addWidget(title4, 300, 0)
         
-        title5 = QLabel(str(pred).strip('[]')+'\n\n Please plan accordingly. \n Thanks for using the program!', self) 
+        title5 = QLabel(str(pred_final).strip('['']').replace(',','%')+'% \n\n Please plan accordingly. \n Thanks for using the program!', self) 
         title5.setAlignment(QtCore.Qt.AlignCenter)
         gridLayout.addWidget(title5, 400, 0)
       
